@@ -1787,20 +1787,19 @@ if __name__ == "__main__":
     import uvicorn
 
     async def main():
-        # создаём приложение Telegram
         telegram_app = build_app()
 
-        # задача бота
-        bot_task = asyncio.create_task(telegram_app.run_polling())
+        # запускаем Telegram-бота корректно для внешнего event loop
+        bot_task = asyncio.create_task(
+            telegram_app.run_polling(close_loop=False)
+        )
 
-        # задача FastAPI
+        # запускаем FastAPI
         uvicorn_config = uvicorn.Config(api, host="0.0.0.0", port=8000, log_level="info")
         uvicorn_server = uvicorn.Server(uvicorn_config)
         api_task = asyncio.create_task(uvicorn_server.serve())
 
-        # запускаем оба
         await asyncio.gather(bot_task, api_task)
 
     asyncio.run(main())
-
-   
+    
