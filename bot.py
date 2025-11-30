@@ -1786,20 +1786,27 @@ if __name__ == "__main__":
     import asyncio
     import uvicorn
 
+    async def start_bot(app):
+        await app.initialize()      # подготовка PTB
+        await app.start()           # запускает getUpdates
+        await app.updater.start_polling()  # ⚠️ запуск polling без run_polling()
+
     async def main():
+        # создаём Telegram приложение
         telegram_app = build_app()
 
-        # запускаем Telegram-бота корректно для внешнего event loop
-        bot_task = asyncio.create_task(
-            telegram_app.run_polling(close_loop=False)
-        )
+        # запускаем Telegram-бота как фоновую задачу
+        asyncio.create_task(start_bot(telegram_app))
 
         # запускаем FastAPI
-        uvicorn_config = uvicorn.Config(api, host="0.0.0.0", port=8000, log_level="info")
-        uvicorn_server = uvicorn.Server(uvicorn_config)
-        api_task = asyncio.create_task(uvicorn_server.serve())
+        config = uvicorn.Config(api, host="0.0.0.0", port=8000)
+        server = uvicorn.Server(config)
+        await server.serve()
 
-        await asyncio.gather(bot_task, api_task)
+        # при завершении сервера — останавливаем бота корректно
+        await telegram_app.updater.stop()
+        await telegram_app.stop()
+        await telegram_app.shutdown()
 
     asyncio.run(main())
     
