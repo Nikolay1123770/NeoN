@@ -1783,15 +1783,24 @@ def build_app():
     
     # -------------------- RUN BOTH BOT + WEBHOOK SERVER --------------------
 if __name__ == "__main__":
-    import threading
-    
-    # запускаем Telegram бота
-    def run_bot():
-        app = build_app()
-        app.run_polling()
+    import asyncio
+    import uvicorn
 
-    threading.Thread(target=run_bot).start()
+    async def main():
+        # создаём приложение Telegram
+        telegram_app = build_app()
 
-    # запускаем FastAPI для webhook CloudTips
-    uvicorn.run(api, host="0.0.0.0", port=8000)
+        # задача бота
+        bot_task = asyncio.create_task(telegram_app.run_polling())
+
+        # задача FastAPI
+        uvicorn_config = uvicorn.Config(api, host="0.0.0.0", port=8000, log_level="info")
+        uvicorn_server = uvicorn.Server(uvicorn_config)
+        api_task = asyncio.create_task(uvicorn_server.serve())
+
+        # запускаем оба
+        await asyncio.gather(bot_task, api_task)
+
+    asyncio.run(main())
+
    
